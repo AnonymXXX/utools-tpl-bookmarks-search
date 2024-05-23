@@ -78,6 +78,58 @@ function openUrlByEdge (url) {
   }
 }
 
+/**
+ * 排序匹配列表
+ * 优先级：
+ * 1. title完全匹配
+ * 2. description完全匹配
+ * 3. title包含匹配
+ * 4. description包含匹配
+ * 支持多个搜索词，用空格分隔，第一个词必须匹配了，才去匹配第二个词
+ */
+function sortMatchList(list, searchWords) {
+  const searchRegexes = searchWords.split(/\s+/).map(word => new RegExp(word, 'i'));
+
+  // 创建评分函数
+  const getMatchScore = (item) => {
+    let score = 0;
+    let matched = true;
+
+    for (let i = 0; i < searchRegexes.length; i++) {
+      const regex = searchRegexes[i];
+      if (matched) {
+        if (item.title === searchWords) return 8; // title 完全匹配优先级最高
+        if (item.description === searchWords) return 7; // description 完全匹配次高
+        if (regex.test(item.title)) {
+          score += 2;
+        } else if (regex.test(item.description)) {
+          score += 1;
+        } else {
+          matched = false;
+          score = 0;
+        }
+      } else {
+        break;
+      }
+    }
+    return score;
+  };
+
+  // 给每个项分配分数
+  const scoredList = list.map(item => ({
+    ...item,
+    score: getMatchScore(item)
+  }));
+
+  // 过滤掉分数为0的项，并按分数降序排序
+  const filteredSortedList = scoredList
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  // 移除分数属性并返回过滤和排序后的列表
+  return filteredSortedList.map(({ score, ...rest }) => rest);
+}
+
 window.exports = {
   'bookmarks-search': {
     mode: 'list',
@@ -105,20 +157,10 @@ window.exports = {
       },
       search: (action, searchWord, callbackSetList) => {
         searchWord = searchWord.trim()
-        if (!searchWord) return callbackSetList()
-        if (/\S\s+\S/.test(searchWord)) {
-          const regexTexts = searchWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').split(/\s+/)
-          const searchRegexs = regexTexts.map(rt => new RegExp(rt, 'i'))
-          return callbackSetList(bookmarksDataCache.filter(x => (
-            !searchRegexs.find(r => x.title.search(r) === -1) || !searchRegexs.find(r => x.description.search(r) === -1)
-          )))
-        } else {
-          const regexText = searchWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-          const searchRegex = new RegExp(regexText, 'i')
-          return callbackSetList(bookmarksDataCache.filter(x => (
-            x.title.search(searchRegex) !== -1 || x.description.search(searchRegex) !== -1
-          )))
-        }
+        if (!searchWord) 
+          return callbackSetList()
+
+        return callbackSetList(sortMatchList(bookmarksDataCache, searchWord))
       },
       select: (action, itemData) => {
         window.utools.hideMainWindow(false)
