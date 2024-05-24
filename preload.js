@@ -37,44 +37,50 @@ function getBookmarks (dataDir, browser) {
 }
 
 function openUrlByChrome (url) {
+  const openChrome = (chromePath) => {
+    if (chromePath && fs.existsSync(chromePath)) {
+      cp.spawn(chromePath, [url], { detached: true });
+    } else {
+      window.utools.shellOpenExternal(url);
+    }
+  };
+
   if (process.platform === 'win32') {
-    const suffix = `${path.sep}Google${path.sep}Chrome${path.sep}Application${path.sep}chrome.exe`
-    const prefixes = [process.env['PROGRAMFILES(X86)'], process.env.PROGRAMFILES, process.env.LOCALAPPDATA].filter(Boolean)
-    const prefix = prefixes.find(prefix => fs.existsSync(path.join(prefix, suffix)))
-    const chromeApp = prefix && path.join(prefix, suffix)
-    if (chromeApp) {
-      cp.spawn(chromeApp, [url], { detached: true })
-    } else {
-      window.utools.shellOpenExternal(url)
-    }
-    return
-  }
-  if (process.platform === 'darwin') {
-    const chromeApp = '/Applications/Google Chrome.app'
-    if (fs.existsSync(chromeApp)) {
-      cp.spawn('open', ['-a', chromeApp, url], { detached: true })
-    } else {
-      window.utools.shellOpenExternal(url)
-    }
+    const suffix = `${path.sep}Google${path.sep}Chrome${path.sep}Application${path.sep}chrome.exe`;
+    const prefixes = [process.env['PROGRAMFILES(X86)'], process.env.PROGRAMFILES, process.env.LOCALAPPDATA].filter(Boolean);
+    const chromePath = prefixes.map(prefix => path.join(prefix, suffix)).find(p => fs.existsSync(p));
+    openChrome(chromePath);
+  } else if (process.platform === 'darwin') {
+    const chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+    openChrome(chromePath);
+  } else if (process.platform === 'linux') {
+    const chromePath = '/usr/bin/google-chrome';
+    openChrome(chromePath);
+  } else {
+    window.utools.shellOpenExternal(url);
   }
 }
 
 function openUrlByEdge (url) {
-  if (process.platform === 'win32') {
-    const args = ['shell:AppsFolder\\Microsoft.MicrosoftEdge_8wekyb3d8bbwe!MicrosoftEdge']
-    args.push(url)
-    cp.spawn('start', args, { shell: 'cmd.exe', detached: true }).once('error', () => {
-      window.utools.shellOpenExternal(url)
-    })
-    return
-  }
-  if (process.platform === 'darwin') {
-    const edgeApp = '/Applications/Microsoft Edge.app'
-    if (fs.existsSync(edgeApp)) {
-      cp.spawn('open', ['-a', edgeApp, url], { detached: true })
+  const openEdge = (edgePath) => {
+    if (edgePath && fs.existsSync(edgePath)) {
+      cp.spawn(edgePath, [url], { detached: true });
     } else {
-      window.utools.shellOpenExternal(url)
+      window.utools.shellOpenExternal(url);
     }
+  };
+
+  if (process.platform === 'win32') {
+    const edgePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+    openEdge(edgePath);
+  } else if (process.platform === 'darwin') {
+    const edgePath = '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge';
+    openEdge(edgePath);
+  } else if (process.platform === 'linux') {
+    const edgePath = '/usr/bin/microsoft-edge';
+    openEdge(edgePath);
+  } else {
+    window.utools.shellOpenExternal(url);
   }
 }
 
